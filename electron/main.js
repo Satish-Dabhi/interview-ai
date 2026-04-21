@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, desktopCapturer } = require('electron')
 const path = require('path')
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -19,6 +19,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     }
   })
+
+  // Exclude window from screen capture (Google Meet, Teams, OBS, etc.)
+  mainWindow.setContentProtection(true)
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
@@ -55,4 +58,10 @@ ipcMain.on('set-always-on-top', (_, val) => mainWindow?.setAlwaysOnTop(val))
 ipcMain.on('set-compact', (_, compact) => {
   if (compact) mainWindow?.setSize(380, 180)
   else mainWindow?.setSize(440, 640)
+})
+
+// Provides a screen source ID so the renderer can capture system audio via getUserMedia
+ipcMain.handle('get-desktop-audio-source-id', async () => {
+  const sources = await desktopCapturer.getSources({ types: ['screen'] })
+  return sources[0]?.id ?? null
 })

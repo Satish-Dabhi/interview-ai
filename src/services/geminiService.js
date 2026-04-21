@@ -1,3 +1,65 @@
+// ── Audio transcription ────────────────────────────────────────────────────────
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function transcribeWithGroq(blob, apiKey) {
+  const formData = new FormData()
+  formData.append('file', new File([blob], 'audio.webm', { type: blob.type || 'audio/webm' }))
+  formData.append('model', 'whisper-large-v3-turbo')
+  formData.append('language', 'en')
+
+  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `Whisper error ${res.status}`)
+  }
+  const data = await res.json()
+  return data.text || ''
+}
+
+async function transcribeWithGemini(blob, apiKey) {
+  const base64 = await blobToBase64(blob)
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inlineData: { mimeType: blob.type || 'audio/webm', data: base64 } },
+            { text: 'Transcribe this audio. Return only the spoken words, nothing else.' }
+          ]
+        }]
+      })
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `Gemini transcription error ${res.status}`)
+  }
+  const data = await res.json()
+  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+}
+
+export async function transcribeAudio(audioBlob, apiKey, provider = 'groq') {
+  if (!apiKey) throw new Error('No API key for transcription')
+  return provider === 'groq'
+    ? transcribeWithGroq(audioBlob, apiKey)
+    : transcribeWithGemini(audioBlob, apiKey)
+}
+
 // ── Provider configuration ─────────────────────────────────────────────────────
 
 const PROVIDERS = {

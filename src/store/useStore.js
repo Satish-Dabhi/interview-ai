@@ -38,6 +38,10 @@ const useStore = create((set, get) => ({
   isCompact: false,
   setIsCompact: (val) => set({ isCompact: val }),
 
+  // ── Audio source ──────────────────────────────────
+  audioSource: 'mic', // 'mic' | 'system'
+  setAudioSource: (src) => set({ audioSource: src }),
+
   // ── Microphone / listening ─────────────────────────
   isListening: false,
   setIsListening: (val) => set({ isListening: val }),

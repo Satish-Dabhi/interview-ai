@@ -1,6 +1,7 @@
-import React, { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import useStore from '../store/useStore'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { useSystemAudio } from '../hooks/useSystemAudio'
 import Controls from './Controls'
 import Transcription from './Transcription'
 import AISuggestions from './AISuggestions'
@@ -15,6 +16,8 @@ export default function AssistantView() {
     aiResponse,
     isGenerating,
     aiError,
+    isListening,
+    audioSource,
     setAiResponse,
     setIsGenerating,
     setAiError,
@@ -46,7 +49,33 @@ export default function AssistantView() {
     [settings, isGenerating, getApiConfig, setIsGenerating, setAiResponse, setAiError]
   )
 
-  const { toggleListening } = useSpeechRecognition({ onFinalTranscript: sendToAI })
+  const { toggleListening, stopListening } = useSpeechRecognition({ onFinalTranscript: sendToAI })
+  const { toggle: toggleSystem, stop: stopSystem } = useSystemAudio({ onFinalTranscript: sendToAI })
+
+  const handleToggle = useCallback(() => {
+    if (audioSource === 'system') toggleSystem()
+    else toggleListening()
+  }, [audioSource, toggleSystem, toggleListening])
+
+  // Global hotkey Ctrl+Shift+M routes to whichever source is active
+  useEffect(() => {
+    const eAPI = /** @type {any} */ (window).electronAPI
+    eAPI?.onToggleMic(handleToggle)
+    return () => {
+      stopListening()
+      stopSystem()
+      eAPI?.removeListeners()
+    }
+  }, [handleToggle, stopListening, stopSystem])
+
+  // Stop the inactive source when switching modes mid-session
+  useEffect(() => {
+    if (isListening) {
+      if (audioSource === 'system') stopListening()
+      else stopSystem()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioSource])
 
   const handleClear = () => { clearTranscript(); clearResponse() }
   const handleSendNow = () => sendToAI(useStore.getState().transcript)
@@ -66,7 +95,7 @@ export default function AssistantView() {
 
   return (
     <>
-      <Controls onToggle={toggleListening} onClear={handleClear} onSend={handleSendNow} />
+      <Controls onToggle={handleToggle} onClear={handleClear} onSend={handleSendNow} />
       <Transcription />
       <AISuggestions isGenerating={isGenerating} error={aiError} response={aiResponse} />
     </>

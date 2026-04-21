@@ -1,11 +1,10 @@
-import React from 'react'
 import useStore from '../store/useStore'
 
 export default function Controls({ onToggle, onClear, onSend }) {
-  const { isListening, isGenerating, transcript, interimTranscript } = useStore()
+  const { isListening, isGenerating, transcript, interimTranscript, audioSource, setAudioSource } = useStore()
 
   const statusText = isListening
-    ? 'Listening...'
+    ? audioSource === 'system' ? 'Listening (Speaker)...' : 'Listening...'
     : isGenerating
     ? 'Thinking...'
     : 'Ready'
@@ -14,6 +13,18 @@ export default function Controls({ onToggle, onClear, onSend }) {
 
   return (
     <div className="controls">
+      <button
+        className={`icon-btn ${audioSource === 'system' ? 'active' : ''}`}
+        title={audioSource === 'system'
+          ? 'System audio — capturing your speakers (click to use mic)'
+          : 'Microphone — click to switch to system audio (capture interviewer)'}
+        disabled={isListening}
+        onClick={() => setAudioSource(audioSource === 'mic' ? 'system' : 'mic')}
+        style={{ fontSize: 16, opacity: isListening ? 0.45 : 1 }}
+      >
+        {audioSource === 'system' ? '🔊' : '🎙️'}
+      </button>
+
       <button className={`mic-btn ${isListening ? 'listening' : ''}`} onClick={onToggle}>
         {isListening ? '⏹ Stop' : '🎤 Listen'}
       </button>

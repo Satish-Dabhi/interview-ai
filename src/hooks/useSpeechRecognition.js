@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useRef, useCallback } from 'react'
 import useStore from '../store/useStore'
 
 const SEND_AFTER_MS = 1800 // send to AI after 1.8 s of silence
@@ -82,15 +82,6 @@ export function useSpeechRecognition({ onFinalTranscript }) {
     if (isListeningRef.current) stopListening()
     else startListening()
   }, [startListening, stopListening])
-
-  // Listen for hotkey sent from Electron main process
-  useEffect(() => {
-    window.electronAPI?.onToggleMic(toggleListening)
-    return () => {
-      stopListening()
-      window.electronAPI?.removeListeners()
-    }
-  }, [toggleListening, stopListening])
 
   return { startListening, stopListening, toggleListening }
 }
